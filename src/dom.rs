@@ -1,65 +1,54 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::slice::Iter;
+use bytes::{BufMut, BytesMut};
 
-pub type Node = Rc<RefCell<DomNode>>;
+#[derive(Debug)]
+pub struct Node {
+    text: BytesMut,
+    closing: BytesMut,
+    parent: Option<usize>,
+    children: Vec<usize>,
+}
 
-#[derive(Debug, Clone)]
-pub struct DomNode {
-    pub value: String,
-    pub closing: String,
-    parent: Option<Node>,
-    children: Vec<Node>,
+#[derive(Debug)]
+pub enum PushText<'a> {
+    Slice(&'a [u8]),
+    Byte(u8),
+}
+
+impl Node {
+    pub fn new() -> Node {
+        return Node {
+            text: BytesMut::new(),
+            closing: BytesMut::new(),
+            parent: None,
+            children: Vec::new(),
+        };
+    }
+    pub fn append_children(&mut self, idx: usize) {
+        self.children.push(idx);
+    }
+    pub fn push_text(&mut self, s: PushText) {
+        match s {
+            PushText::Slice(t) => self.text.put_slice(t),
+            PushText::Byte(t) => self.text.put_u8(t),
+        }
+    }
+    pub fn set_closing(&mut self, tag: &[u8]) {
+        self.text.put_slice(tag);
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    TreeEmpty,
 }
 
 #[derive(Debug)]
 pub struct DomTree {
     size: usize,
-    pub root: Option<Node>,
-    current_node: Option<Node>,
-}
-
-#[derive(Debug)]
-pub enum Error {
-    RootExists,
-    CurrentNone,
-}
-
-pub enum PushType {
-    String(String),
-    Char(char),
-}
-
-impl DomNode {
-    pub fn new(value: String, parent: Option<Node>, children: Option<Vec<Node>>) -> Self {
-        let children = if children.is_some() {
-            children.unwrap()
-        } else {
-            vec![]
-        };
-        return DomNode {
-            value,
-            closing: String::new(),
-            parent,
-            children,
-        };
-    }
-    pub fn from(node: DomNode) -> Node {
-        return Rc::new(RefCell::new(node));
-    }
-    pub fn get_parent(&self) -> Option<Node> {
-        if let Some(node) = self.parent.as_ref() {
-            return Some(Rc::clone(node));
-        } else {
-            return None;
-        }
-    }
-    pub fn append_children(&mut self, node: Node) {
-        self.children.push(node)
-    }
-    pub fn iter_children(&self) -> Iter<Node> {
-        return self.children.iter();
-    }
+    root: Option<usize>,
+    current: Option<usize>,
+    text: BytesMut,
+    nodes: Vec<Node>,
 }
 
 impl DomTree {
@@ -67,82 +56,44 @@ impl DomTree {
         return DomTree {
             size: 0,
             root: None,
-            current_node: None,
+            current: None,
+            text: BytesMut::new(),
+            nodes: Vec::new(),
         };
     }
-    pub fn size(&self) -> usize {
-        return self.size;
+    pub fn len(&self) -> usize {
+        return self.nodes.len();
     }
-    pub fn push_current(&mut self, node: DomNode) {
-        let node_rc = Rc::new(RefCell::new(node));
-        if let Some(current) = self.current_node.as_ref() {
-            node_rc.borrow_mut().parent = Some(Rc::clone(current));
-            current.borrow_mut().children.push(Rc::clone(&node_rc));
-            if self.root.is_none() {
-                self.root = Some(Rc::clone(&node_rc));
-            }
+    pub fn push_current(&mut self, mut node: Node) {
+        let idx = self.len();
+        if let Some(current) = self.current {
+            let parent = self.nodes.get_mut(current).unwrap();
+            node.parent = Some(current);
+            parent.append_children(idx);
+        } else {
         }
-        self.current_node = Some(Rc::clone(&node_rc));
+        if self.root.is_none() {
+            self.root = Some(idx);
+        }
+        self.nodes.push(node);
+        self.current = Some(idx);
         self.size += 1;
     }
     pub fn pop_current(&mut self) -> Result<(), Error> {
-        if self.current_node.is_none() {
-            return Err(Error::CurrentNone);
-        }
-        let current = self.current_node.take();
-        if let Some(current) = current.as_ref() {
-            let value = current.borrow().value.clone();
-            if let Some(parent) = current.borrow().parent.as_ref() {
-                parent.borrow_mut().value.push_str(&value);
-                self.current_node = Some(Rc::clone(parent));
+        return match self.current {
+            Some(current) => {
+                self.current = self.nodes.get_mut(current).unwrap().parent;
+                Ok(())
             }
+            None => Err(Error::TreeEmpty),
+        };
+    }
+    pub fn get_current(&mut self) -> Option<&mut Node> {
+        if let Some(current) = self.current {
+            let node = self.nodes.get_mut(current).unwrap();
+            return Some(node);
         } else {
-            self.current_node = None;
+            return None;
         }
-        return Ok(());
-    }
-    pub fn push_to_current(&mut self, tag: PushType) {
-        if let Some(current) = self.current_node.as_ref() {
-            match tag {
-                PushType::String(s) => current.borrow_mut().value.push_str(&s),
-                PushType::Char(c) => current.borrow_mut().value.push(c),
-            }
-        }
-    }
-    pub fn push_to_closing(&mut self, tag: String) {
-        if let Some(current) = self.current_node.as_ref() {
-            current.borrow_mut().closing = tag;
-        }
-    }
-    fn to_string_aux(&self, node: Node) -> String {
-        let mut s = String::new();
-        let current = node.borrow();
-        s.push_str(&current.value);
-        if current.children.len() > 0 {
-            current
-                .iter_children()
-                .for_each(|i| s.push_str(&self.to_string_aux(Rc::clone(i))));
-        }
-        return s;
-    }
-}
-
-impl std::fmt::Display for DomTree {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        return write!(
-            f,
-            "{}",
-            self.to_string_aux(Rc::clone(&self.root.as_ref().unwrap()))
-        );
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_dom() -> Result<(), Error> {
-        return Ok(());
     }
 }
