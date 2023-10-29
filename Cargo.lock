@@ -621,6 +621,7 @@ dependencies = [
 name = "scrapio"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "reqwest",
 ]
 
