@@ -1,4 +1,4 @@
-use bytes::{BufMut, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug)]
 pub struct Node {
@@ -33,13 +33,8 @@ impl Node {
         }
     }
     pub fn set_closing(&mut self, tag: &[u8]) {
-        self.text.put_slice(tag);
+        self.closing.put_slice(tag);
     }
-}
-
-#[derive(Debug)]
-pub enum Error {
-    TreeEmpty,
 }
 
 #[derive(Debug)]
@@ -47,9 +42,24 @@ pub struct DomTree {
     size: usize,
     root: Option<usize>,
     current: Option<usize>,
-    text: BytesMut,
+    text: Bytes,
     nodes: Vec<Node>,
 }
+
+#[derive(Debug)]
+pub enum Error {
+    EmptyTree,
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::EmptyTree => writeln!(f, "Cannot perform action since tree is empty!"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
 
 impl DomTree {
     pub fn new() -> Self {
@@ -57,9 +67,15 @@ impl DomTree {
             size: 0,
             root: None,
             current: None,
-            text: BytesMut::new(),
-            nodes: Vec::new(),
+            text: Bytes::new(),
+            nodes: Vec::with_capacity(10000),
         };
+    }
+    pub fn get_root(&self) -> Option<usize> {
+        return self.root;
+    }
+    pub fn set_text(&mut self, text: Bytes) {
+        self.text = text;
     }
     pub fn len(&self) -> usize {
         return self.nodes.len();
@@ -85,7 +101,7 @@ impl DomTree {
                 self.current = self.nodes.get_mut(current).unwrap().parent;
                 Ok(())
             }
-            None => Err(Error::TreeEmpty),
+            None => Err(Error::EmptyTree),
         };
     }
     pub fn get_current(&mut self) -> Option<&mut Node> {
