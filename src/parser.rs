@@ -47,7 +47,7 @@ fn extract_tag(html: &Bytes, ptr: &mut usize) -> TagKind {
     }
 }
 
-fn open_close(tree: &mut dom::DomTree, html: &Bytes, t: Range<usize>) {
+fn push_self_closer(tree: &mut dom::DomTree, html: &Bytes, t: Range<usize>) {
     let mut node = dom::Node::new();
     node.push_text(dom::PushText::Slice(&html[t.clone()]));
     tree.push_current(node);
@@ -78,10 +78,10 @@ pub fn parse(html: &Bytes) -> Result<dom::DomTree, dom::Error> {
                         tree.pop_current()?;
                     }
                     TagKind::SelfClosing(t) => {
-                        open_close(&mut tree, &html, t);
+                        push_self_closer(&mut tree, &html, t);
                     }
                     TagKind::Void(t) => {
-                        open_close(&mut tree, &html, t);
+                        push_self_closer(&mut tree, &html, t);
                     }
                     _ => {}
                 }
