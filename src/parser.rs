@@ -103,12 +103,12 @@ mod tests {
     use super::*;
     use std::fs;
     use std::io::Read;
+    use std::path::Path;
     use std::time::Instant;
 
     #[test]
     fn test_parser() -> Result<(), Box<dyn std::error::Error>> {
-        let example_path = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/example.html");
-        println!("{example_path}");
+        let example_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/example.html");
         let mut f = fs::File::open(example_path)?;
 
         let mut b: Vec<u8> = Vec::with_capacity(f.metadata()?.len() as usize);
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_parser_perf() -> Result<(), Box<dyn std::error::Error>> {
-        let example_path = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/example.html");
+        let example_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/example.html");
         let mut f = fs::File::open(example_path)?;
 
         let mut b: Vec<u8> = Vec::with_capacity(f.metadata()?.len() as usize);
