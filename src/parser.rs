@@ -27,22 +27,22 @@ fn extract_tag(html: &Bytes, ptr: &mut usize) -> TagKind {
         [b'<', b'/', ..] => TagKind::Close(start..end),
         [.., b'/', b'>'] => TagKind::SelfClosing(start..end),
         [b'<', b'!', b'-', b'-', ..] => TagKind::Comment(start..end),
-        [b'<', b'b', b'r', ..] => TagKind::Void(start..end),
-        [b'<', b'h', b'r', ..] => TagKind::Void(start..end),
-        [b'<', b'c', b'o', b'l', ..] => TagKind::Void(start..end),
-        [b'<', b'i', b'm', b'g', ..] => TagKind::Void(start..end),
-        [b'<', b'w', b'b', b'r', ..] => TagKind::Void(start..end),
-        [b'<', b'a', b'r', b'e', b'a', ..] => TagKind::Void(start..end),
-        [b'<', b'b', b'a', b's', b'e', ..] => TagKind::Void(start..end),
-        [b'<', b'l', b'i', b'n', b'k', ..] => TagKind::Void(start..end),
-        [b'<', b'm', b'e', b't', b'a', ..] => TagKind::Void(start..end),
-        [b'<', b'e', b'm', b'b', b'e', b'd', ..] => TagKind::Void(start..end),
-        [b'<', b'i', b'n', b'p', b'u', b't', ..] => TagKind::Void(start..end),
-        [b'<', b'p', b'a', b'r', b'a', b'm', ..] => TagKind::Void(start..end),
-        [b'<', b't', b'r', b'a', b'c', b'k', ..] => TagKind::Void(start..end),
-        [b'<', b'k', b'e', b'y', b'g', b'e', b'n', ..] => TagKind::Void(start..end),
-        [b'<', b's', b'o', b'u', b'r', b'c', b'e', ..] => TagKind::Void(start..end),
-        [b'<', b'c', b'o', b'm', b'm', b'a', b'n', b'd', ..] => TagKind::Void(start..end),
+        [b'<', b'b', b'r', ..]
+        | [b'<', b'h', b'r', ..]
+        | [b'<', b'c', b'o', b'l', ..]
+        | [b'<', b'i', b'm', b'g', ..]
+        | [b'<', b'w', b'b', b'r', ..]
+        | [b'<', b'a', b'r', b'e', b'a', ..]
+        | [b'<', b'b', b'a', b's', b'e', ..]
+        | [b'<', b'l', b'i', b'n', b'k', ..]
+        | [b'<', b'm', b'e', b't', b'a', ..]
+        | [b'<', b'e', b'm', b'b', b'e', b'd', ..]
+        | [b'<', b'i', b'n', b'p', b'u', b't', ..]
+        | [b'<', b'p', b'a', b'r', b'a', b'm', ..]
+        | [b'<', b't', b'r', b'a', b'c', b'k', ..]
+        | [b'<', b'k', b'e', b'y', b'g', b'e', b'n', ..]
+        | [b'<', b's', b'o', b'u', b'r', b'c', b'e', ..]
+        | [b'<', b'c', b'o', b'm', b'm', b'a', b'n', b'd', ..] => TagKind::Void(start..end),
         _ => TagKind::Open(start..end),
     }
 }
@@ -77,10 +77,7 @@ pub fn parse(html: &Bytes) -> Result<dom::DomTree, dom::Error> {
                         }
                         tree.pop_current()?;
                     }
-                    TagKind::SelfClosing(t) => {
-                        push_self_closer(&mut tree, &html, t);
-                    }
-                    TagKind::Void(t) => {
+                    TagKind::SelfClosing(t) | TagKind::Void(t) => {
                         push_self_closer(&mut tree, &html, t);
                     }
                     _ => {}
